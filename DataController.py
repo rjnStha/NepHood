@@ -1,8 +1,7 @@
 from ShareSansar.ShareSansarScraper import ShareSansarScraper
 from Firebase.Firebase import FirestoreManager
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-
+from TechnicalDataCalculator.TechCalculator import TechCalculator
 
 class DataController(object):
     def __init__(self):
@@ -10,7 +9,7 @@ class DataController(object):
         return
     
     # Returns the Compound Sentiment Score
-    def __sentiment_scores(self,sentence):
+    def __sentiment_scores(self, sentence):
 
         # Create a SentimentIntensityAnalyzer object.
         sid_obj = SentimentIntensityAnalyzer()
@@ -49,7 +48,32 @@ class DataController(object):
         dict_fundamental_data = share_Sansar_Scraper.scrape_Price_History(company)
         self.save_DB(company,dict_fundamental_data,"FundamentalData")
         return dict_fundamental_data
+    
+    # Remittance, Inflation Rate, Exchange Rate, Consumer Price Index
+    # Treasury Bill and Commercial Bank Interest Rate
+    # TODO Find trustable data source || Problem with ShareSansar
+    def collect_Macroeconomic_Data(self):
+        return
+    
+    # Moving Average Convergence Divergence (MACD), Average True Range (ATR), 
+    # Relative Strength Index (RSI) and Money Flow Index (MFI)
+    def collect_Technical_Data(self, company):
+        
+        # TODO Flag to get Fundamental get from DB OR Scrape 
+        share_Sansar_Scraper = ShareSansarScraper()
+        dict_fundamental_data = share_Sansar_Scraper.scrape_Price_History(company)
+        
+        tech_calculator = TechCalculator()
 
+        dict_technical_data = {
+            "MACD": tech_calculator.calculate_MACD(dict_fundamental_data),
+            # "ATR" : tech_calculator.calculate_ATR(),
+            # "RSI" : tech_calculator.calculate_RSI(),
+            # "MFI" : tech_calculator.calculate_MFI()
+        }
+        return dict_technical_data
+
+    # Save the dict of a company in Database
     def save_DB(self, company, dict, collection_Name):
         db = FirestoreManager(env="dev").db
         # Save the Dict to the database 
