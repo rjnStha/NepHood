@@ -61,10 +61,9 @@ class DataController(object):
         
         # TODO Flag to get Fundamental get from DB OR Scrape 
         share_Sansar_Scraper = ShareSansarScraper()
-        dict_fundamental_data = share_Sansar_Scraper.scrape_Price_History(company)
-        
         tech_calculator = TechCalculator()
-
+        
+        dict_fundamental_data = share_Sansar_Scraper.scrape_Price_History(company)
         dict_technical_data = {
             "MACD": tech_calculator.calculate_MACD(dict_fundamental_data),
             # "ATR" : tech_calculator.calculate_ATR(),

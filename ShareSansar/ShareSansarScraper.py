@@ -67,7 +67,8 @@ class ShareSansarScraper(Scraper):
     # TODO Error Handling
     # NOTE: https://www.sharesansar.com/company/{nmb}
     def scrape_Price_History(self,company):
-        
+        # Dictionary of dictionary with outer-keys: {Open, High, Low, Close, Volume} and innner-key as date
+        price_history_dict = {}
         # NOTE: Store Data in Pandas DataFrames for easier postprocessing using Panda
         open_dict = {}
         high_dict = {}
@@ -83,8 +84,7 @@ class ShareSansarScraper(Scraper):
             num_Pages = WebDriverWait(self.driver, 20).until(
                 EC.visibility_of_element_located((By.XPATH,'//*[@id="myTableCPriceHistory_paginate"]/span/a[6]'))).text
              # Get history from every Pages
-            int(num_Pages)
-            for _ in range(2):
+            for _ in range(int(num_Pages)):
                 print("Getting Price History Table HTML")
                 try:
                     # Wait until the price history table loads
@@ -101,11 +101,11 @@ class ShareSansarScraper(Scraper):
                     for table_row in news_table_body.find_all('tr'):
                         table_data = table_row.find_all('td')
                         date = table_data[1].string.replace(',','')
-                        open_dict[date] = table_data[2].string.replace(',','')
-                        high_dict[date] = table_data[3].string.replace(',','')
-                        low_dict[date] = table_data[4].string.replace(',','')
-                        ltp_dict[date] = table_data[5].string.replace(',','')
-                        volume_dict[date] = table_data[7].string.replace(',','')
+                        open_dict[date] = float(table_data[2].string.replace(',',''))
+                        high_dict[date] = float(table_data[3].string.replace(',',''))
+                        low_dict[date] = float(table_data[4].string.replace(',',''))
+                        ltp_dict[date] = float(table_data[5].string.replace(',',''))
+                        volume_dict[date] = float(table_data[7].string.replace(',',''))
                 
                 except BaseException as e:
                     raise Exception()
@@ -121,8 +121,6 @@ class ShareSansarScraper(Scraper):
                 "ltp" : ltp_dict,
                 "volume": volume_dict
             }
-            print(price_history_dict.items())
-            breakpoint()
         except BaseException as e:
                 self._error_handler(e)
         finally:

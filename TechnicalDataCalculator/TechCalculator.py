@@ -6,17 +6,14 @@ class TechCalculator(object):
         return
     
     # Calculate Moving Average Convergence Divergence (MACD)
-    def calculate_MACD(self, dict):
-        breakpoint()
-        df = pd.DataFrame(dict)
-        print(df)
+    def calculate_MACD(self, fundamental_dict):
+        # Create DataFrame object from Dict
+        fundamental_dataframe = pd.DataFrame.from_dict(fundamental_dict)
         # Calculate MACD values using the pandas_ta library
-        df.ta.macd(close='ltp', fast=12, slow=26, signal=9, append=True)
-        # View result
-        pd.set_option("display.max_columns", None)  # show all columns
-        breakpoint()
-    
-        return
+        fundamental_dataframe.ta.macd(close='ltp', fast=12, slow=26, signal=9, append=True)
+        # View result show all columns
+        pd.set_option("display.max_columns", None)
+        return fundamental_dataframe
     
     # Calculate Average True Range (ATR)
     def calculate_ATR(self):
