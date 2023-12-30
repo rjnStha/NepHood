@@ -16,6 +16,3 @@ class FirestoreManager:
         cred = credentials.Certificate(r"D:\AI\ainepse-firebaseKey.json")
         firebase_admin.initialize_app(cred)
         self.db = firestore.client()
-    
-    def users_ref(self):
-        return self.db.collection(u'buffetters')

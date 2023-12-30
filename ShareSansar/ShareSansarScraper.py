@@ -4,40 +4,49 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 class ShareSansarScraper(Scraper):
     def __init__(self):
         super().__init__()
         self.base_link ="https://www.sharesansar.com/"
-        #https://www.sharesansar.com/company/nmb
     
-    # Returns the Compound Sentiment Score
-    def __sentiment_scores(self,sentence):
- 
-        # Create a SentimentIntensityAnalyzer object.
-        sid_obj = SentimentIntensityAnalyzer()
-    
-        # returns a sentiment dictionary with pos, neg, neu, and compound scores.
-        sentiment_dict = sid_obj.polarity_scores(sentence)
-        # Return the compound score as the news sentiment score
-        return sentiment_dict['compound']
+    # # https://www.sharesansar.com/company-list
+    # def scrape_companyList(self):
+    #     # Dictionary with Date as key and News+Score as value 
+    #     CompanyFundDict = {}
+    #     self._scrape(self.base_link + "company-list")
+    #     try:
+    #         # Click the news tab to get news-table of the specific company
+    #         self.driver.find_element(By.ID,"btn_cnews").click()
+
+            
+
+    #     except BaseException as e:
+    #             self._error_handler(e)
+        
+    #     finally:
+    #         self.driver.quit()
+                    
+    #     return NewsDict
     
     # TODO Error Handling
-    def scrape_news_score(self, company):
+    # https://www.sharesansar.com/company/{nmb}
+    def scrape_news(self, company):
+        # Dictionary with Date as key and News+Score as value 
+        NewsDict = {}
         self._scrape(self.base_link + "company/" + company)
         try:
             # Click the news tab to get news-table of the specific company
-            self.driver.find_element(By.ID,"btn_cnews").click()
-            
-            # Dictionary with Date as key and News+Score as value 
-            NewsDict = {}
+            # self.driver.find_element(By.ID,"btn_cnews").click()
+            WebDriverWait(self.driver, 20).until(
+                EC.visibility_of_element_located((By.ID,"btn_cnews"))).click()
             # Wait for the news-table to load and Get the number of pages
             numPages = WebDriverWait(self.driver, 20).until(
                 EC.visibility_of_element_located((By.XPATH,'//*[@id="myTableCNews_paginate"]/span/a[6]'))).text
 
-            # Get news from every Pages        
-            for _ in range(int(numPages)):
+            # Get news from every Pages
+            int(numPages)
+            for _ in range(3):
                 print("Getting table html")
                 try:
                     # Wait until the news-table loads
@@ -55,18 +64,11 @@ class ShareSansarScraper(Scraper):
                         tableData = tableRow.find_all('td')
                         newsDate = tableData[0].string.replace(',','')
                         news = tableData[1].string.replace(',','')
-                        
-                        # TODO Data Prepossessing
-
-                        # Calculate the news sentiment score
-                        sentimentScore = str(self.__sentiment_scores(news))
-                        newsScore  = "Score: " + sentimentScore + " | " + news
-
-                        # Add the news and score to the Dict 
+                        # Add the news the Dict 
                         if newsDate in NewsDict:
-                            NewsDict[newsDate].append(newsScore)
+                            NewsDict[newsDate].append(news)
                         else:
-                            NewsDict[newsDate] = [newsScore]
+                            NewsDict[newsDate] = [news]
 
                 except BaseException as e:
                     raise Exception()
@@ -83,6 +85,7 @@ class ShareSansarScraper(Scraper):
         return NewsDict
     
     # TODO Change the news_results XPATH
+    # https://www.sharesansar.com/category/{exclusive}
     def scrape_category(self, category):
         # Categories list: 
         # dividend-right-bonus # exclusive # latest # ipo-fpo-news # share-listed
@@ -106,4 +109,4 @@ class ShareSansarScraper(Scraper):
 # Testing
 if __name__ == '__main__':
     s = ShareSansarScraper()
-    s.scrape_news_score("nmb")
+    s.scrape_news("nmb")
