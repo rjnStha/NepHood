@@ -23,14 +23,11 @@ class DataController(object):
     # Calculate Average Sentiment Score from Dict News
     # average_Sentiment_Score_Daily
     def collect_Financial_News_Data(self, company):
-        
         share_Sansar_Scraper = ShareSansarScraper()
-
         # TODO Data Prepossessing
-        news = share_Sansar_Scraper.scrape_news(company)
+        news = share_Sansar_Scraper.scrape_News(company)
         dict_News_Sentiment_Score = {}
         
-
         # Iterate Dict News
         for key in news:
             daily_News_Array = news[key]
@@ -46,10 +43,13 @@ class DataController(object):
 
         return dict_News_Sentiment_Score
     
+    # Open, High, Low, Close and Volume of the company
     def collect_Fundamental_Data(self, company):
         share_Sansar_Scraper = ShareSansarScraper()
+        dict_fundamental_data = share_Sansar_Scraper.scrape_Price_History(company)
+        self.save_DB(company,dict_fundamental_data,"FundamentalData")
+        return dict_fundamental_data
 
-    
     def save_DB(self, company, dict, collection_Name):
         db = FirestoreManager(env="dev").db
         # Save the Dict to the database 
