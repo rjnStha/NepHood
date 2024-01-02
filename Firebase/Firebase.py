@@ -10,7 +10,8 @@ class BuffettNoEnvironment(Exception):
     pass
 
 class FirestoreManager:
-    # Make sure that I only initialize this once during each run
+    # Initialize once per each run
+    # NOTE Alternate solution : Singleton Pattern
     def __init__(self, env) -> None:
         # Credentials
         cred = credentials.Certificate(r"D:\AI\ainepse-firebaseKey.json")

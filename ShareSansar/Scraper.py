@@ -1,4 +1,3 @@
-# from Firebase.Firebase import FirestoreManager
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.chrome.options import Options
@@ -18,16 +17,12 @@ class Scraper(object):
             self.driver.get(complete_link)
         except TimeoutException as e:
             self.driver.quit()
-            # NotificationUtil.osx_notify(title="Error", body="Timed out while trying to fetch LatestMarket: " + e.msg)
             return []
         print("Log: Fetch Complete")
     
     def _error_handler(self, e):
         if e == AttributeError:
             print("AttributeError")
-            # print("Attribute Error for ", self.ticker_being_scraped)
-            # NotificationUtil.osx_notify(title="Error", body="Attribute error while trying to Scrape from LatestMarket")
         elif e == TimeoutException:
             print("TimeoutException")
-            # NotificationUtil.osx_notify(title="Error", body="Timed out while trying to Scrape from LatestMarket")
     

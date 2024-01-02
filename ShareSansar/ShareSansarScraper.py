@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from ShareSansar.Scraper import Scraper
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -26,6 +27,7 @@ class ShareSansarScraper(Scraper):
                 EC.visibility_of_element_located((By.XPATH,'//*[@id="myTableCNews_paginate"]/span/a[6]'))).text
 
             # Get news from every Pages
+            # int(num_Pages)
             for _ in range(int(num_Pages)):
                 print("Getting News Table HTML")
                 try:
@@ -67,14 +69,11 @@ class ShareSansarScraper(Scraper):
     # TODO Error Handling
     # NOTE: https://www.sharesansar.com/company/{nmb}
     def scrape_Price_History(self,company):
-        # Dictionary of dictionary with outer-keys: {Open, High, Low, Close, Volume} and innner-key as date
+        # Dictionary of list with keys: {Open, High, Low, Close, Volume}
+        # NOTE: Save Data later in Pandas DataFrames for easier postprocessing using Panda
         price_history_dict = {}
-        # NOTE: Store Data in Pandas DataFrames for easier postprocessing using Panda
-        open_dict = {}
-        high_dict = {}
-        low_dict = {}
-        ltp_dict = {}
-        volume_dict = {}
+        # Empty Lists to store price data
+        date_list, open_list, high_list, low_list, ltp_list, volume_list = ([] for i in range(6))
         self._scrape(self.base_link + "company/" + company)
         try:
             # Click the price history tab to get price-table of the specific company
@@ -84,28 +83,30 @@ class ShareSansarScraper(Scraper):
             num_Pages = WebDriverWait(self.driver, 20).until(
                 EC.visibility_of_element_located((By.XPATH,'//*[@id="myTableCPriceHistory_paginate"]/span/a[6]'))).text
              # Get history from every Pages
+            #int(num_Pages)
             for _ in range(int(num_Pages)):
                 print("Getting Price History Table HTML")
                 try:
                     # Wait until the price history table loads
-                    tableHTML = WebDriverWait(self.driver, 20).until(
+                    table_html = WebDriverWait(self.driver, 20).until(
                         EC.visibility_of_element_located((By.ID,"cpricehistory")))
                     # Timeout as WebDriver gets enough time to locate the Table
                     time.sleep(3)
 
-                    #Parse the HTML table 
-                    tableHTML = tableHTML.get_attribute("outerHTML")                
-                    soup = BeautifulSoup(tableHTML, 'html.parser')
-                    newsTable = soup.find('table')
-                    news_table_body = newsTable.find('tbody')
+                    # Parse the HTML table 
+                    table_html = table_html.get_attribute("outerHTML")                
+                    soup = BeautifulSoup(table_html, 'html.parser')
+                    news_table = soup.find('table')
+                    news_table_body = news_table.find('tbody')
                     for table_row in news_table_body.find_all('tr'):
                         table_data = table_row.find_all('td')
-                        date = table_data[1].string.replace(',','')
-                        open_dict[date] = float(table_data[2].string.replace(',',''))
-                        high_dict[date] = float(table_data[3].string.replace(',',''))
-                        low_dict[date] = float(table_data[4].string.replace(',',''))
-                        ltp_dict[date] = float(table_data[5].string.replace(',',''))
-                        volume_dict[date] = float(table_data[7].string.replace(',',''))
+                        date_list.append(table_data[1].string.replace(',',''))
+                        # Convert string price to float
+                        open_list.append(float(table_data[2].string.replace(',','')))
+                        high_list.append(float(table_data[3].string.replace(',','')))
+                        low_list.append(float(table_data[4].string.replace(',','')))
+                        ltp_list.append(float(table_data[5].string.replace(',','')))
+                        volume_list.append(float(table_data[7].string.replace(',','')))
                 
                 except BaseException as e:
                     raise Exception()
@@ -113,14 +114,16 @@ class ShareSansarScraper(Scraper):
                 # Click the next navigate button for new list of price histroy
                 self.driver.find_element(By.XPATH,'//*[@id="myTableCPriceHistory_next"]').click()
             
-            # Dictionary of dictionary with outer-keys: {Open, High, Low, Close, Volume} and innner-key as date
+            # Dictionary of list
             price_history_dict = {
-                "open" : open_dict,
-                "high" : high_dict,
-                "low" : low_dict,
-                "ltp" : ltp_dict,
-                "volume": volume_dict
+                "date": date_list,
+                "open" : open_list,
+                "high" : high_list,
+                "low" : low_list,
+                "ltp" : ltp_list,
+                "volume": volume_list
             }
+
         except BaseException as e:
                 self._error_handler(e)
         finally:
