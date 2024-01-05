@@ -84,8 +84,8 @@ class ShareSansarScraper(Scraper):
                 EC.visibility_of_element_located((By.XPATH,'//*[@id="myTableCPriceHistory_paginate"]/span/a[6]'))).text
              # Get history from every Pages
             #int(num_Pages)
-            for _ in range(int(num_Pages)):
-                print("Getting Price History Table HTML")
+            for page_num in range(int(num_Pages)):
+                print(f'Getting Price History Table HTML Page: {page_num}')
                 try:
                     # Wait until the price history table loads
                     table_html = WebDriverWait(self.driver, 20).until(

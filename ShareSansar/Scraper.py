@@ -7,7 +7,7 @@ class Scraper(object):
         # self.db = FirestoreManager(env="dev").db
         self.chrome_options = Options()
         self.chrome_options.add_argument('--ignore-certificate-errors')
-        # self.chrome_options.add_argument("--headless") # Opens the browser up in background
+        self.chrome_options.add_argument("--headless") # Opens the browser up in background
         self.chrome_options.add_argument("--incognito")
 
     def _scrape(self, complete_link):

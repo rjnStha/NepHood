@@ -1,6 +1,7 @@
 
 import pandas as pd
 import pandas_ta as ta
+from datetime import datetime
 
 # Graph with Plotly
 from plotly.subplots import make_subplots
@@ -13,39 +14,67 @@ class TechCalculator(object):
     def __init__(self):
         return
     
-    # Calculate Moving Average Convergence Divergence (MACD)
-    def calculate_MACD(self, fundamental_dict):
+    # Convert dict to dataframe and make consumable to panda_ta lib 
+    def preprocess_fundamental_data(self, fundamental_dict):
+
         # Create DataFrame object from Dict
         fundamental_dataframe = pd.DataFrame.from_dict(fundamental_dict)
         # Set Date as the index of the DataFrame
         fundamental_dataframe.set_index('date',inplace=True)
         
-        # Filter the data with specific date with fundamental_dataframe.loc['2013-07-14':'2019-02-22']
-        # NOTE Sort Index with oldest date top of the order since MACD reacts to recent price
+        # NOTE Sort Index with oldest date top of the order since
+        #       pandas_ta uses exponential moving average (EMA) that gives higher weighting to recent prices
         fundamental_dataframe = fundamental_dataframe.sort_index(ascending=True)
-        # Remove duplicate Date indices --> Was giving Duplicate Index Error ?????
-        fundamental_dataframe = fundamental_dataframe[~fundamental_dataframe.index.duplicated()]
+        # To filter the data with specific date --> fundamental_dataframe.loc['2013-07-14':'2019-02-22']
+
+        return fundamental_dataframe
+    
+    # Calculate Moving Average Convergence Divergence (MACD)
+    def calculate_MACD(self, fundamental_dict):
+        df = self.preprocess_fundamental_data(fundamental_dict)
 
         # Calculate MACD values using the pandas_ta library
         # MACD Line = (12-day EMA - 26-day EMA)
         # Signal Line = 9-day EMA of MACD Line
         # MACD Histogram = MACD Line - Signal Line
-        fundamental_dataframe.ta.macd(close='ltp', fast=12, slow=26, signal=9, append=True)
+        df.ta.macd(close='ltp', fast=12, slow=26, signal=9, append=True)
         
         # Plot MACD graph
         # self.plot_MACD_Graph(fundamental_dataframe)
         
-        # reset the index to include Date as data and return as dictionary of list
-        return fundamental_dataframe.reset_index().to_dict(orient='list')
-    
+        # Remove unwanted data columns
+        # List of columns to remove
+        columns_to_remove = ["high","low","ltp","open","volume"]
+        df = df.drop(columns=columns_to_remove)
+
+        # Reset the index to include Date as data and return as dictionary of list
+        return df.reset_index().to_dict(orient='list')
+     
+    # Relative Strength Index (RSI)
+    # Sliding window algorithm
+    # NOTE panda_ta calculates RSI using  Exponentially Weighted Moving Average (EWM) instead of
+    #   Wilder-approved Simple Moving Average (SMA), EWM gives higher weight to recent data  
+    def calculate_RSI(self, fundamental_dict):
+        df = self.preprocess_fundamental_data(fundamental_dict)
+
+        # Calculate the RSI where length = lookback period in days
+        df.ta.rsi(close='ltp', length=14, append=True)
+
+        # Plot RSI graph
+        # self.plot_RSI_Graph(df)
+
+        # Remove unwanted data columns
+        # List of columns to remove
+        columns_to_remove = ["high","low","ltp","open","volume"]
+        df = df.drop(columns=columns_to_remove)
+
+        # Reset the index to include Date as data and return as dictionary of list
+        return df.reset_index().to_dict(orient='list')
+   
     # Calculate Average True Range (ATR)
     def calculate_ATR(self):
         return
-    
-    #Relative Strength Index (RSI)
-    def calculate_RSI(self):
-        return
-    
+   
     # Money Flow Index (MFI)
     def calculate_MFI(self):
         return
@@ -137,3 +166,58 @@ class TechCalculator(object):
         # Update options and show plot
         fig.update_layout(layout)
         fig.show()
+    
+    # Visualize RSI with Plotly
+    # def plot_RSI_Graph(self, fundamental_dataframe):
+
+    #     # Create Figure
+    #     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_width=[0.25, 0.75])
+    #     print(fig)
+
+    #     # Create Candlestick chart for price data
+    #     fig.add_trace(go.Candlestick(
+    #         x = fundamental_dataframe.index,
+    #         open = fundamental_dataframe['open'],
+    #         high = fundamental_dataframe['high'],
+    #         low = fundamental_dataframe['low'],
+    #         close = fundamental_dataframe['ltp'],
+    #         increasing_line_color = '#ff9900',
+    #         decreasing_line_color = 'black',
+    #         showlegend = False
+    #     ), rows=1, cols=1)
+
+    #     # Make RSI Plot
+    #     fig.add_trace(go.Scatter(
+    #         x=fundamental_dataframe.index,
+    #         y=fundamental_dataframe['rsi'],
+    #         line=dict(color='#ff9900', width=2),
+    #         showlegend=False,
+    #     ), row=2, col=1)
+
+    #     # Add upper/lower bounds
+    #     fig.update_yaxes(range=[-10, 110], row=2, col=1)
+    #     fig.add_hline(y=0, col=1, row=2, line_color="#666", line_width=2)
+    #     fig.add_hline(y=100, col=1, row=2, line_color="#666", line_width=2)
+
+    #     # Add overbought/oversold
+    #     fig.add_hline(y=30, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
+    #     fig.add_hline(y=70, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
+
+    #     # Customize font, colors, hide range slider
+    #     layout = go.Layout(
+    #         plot_bgcolor='#efefef',
+    #         # Font Families
+    #         font_family='Monospace',
+    #         font_color='#000000',
+    #         font_size=20,
+    #         xaxis=dict(
+    #             rangeslider=dict(
+    #                 visible=False
+    #             )
+    #         )
+    #     )
+    #     # update and display
+    #     fig.update_layout(layout)
+    #     fig.show()
+
+    #     return

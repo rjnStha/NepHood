@@ -3,32 +3,15 @@ from Firebase.Firebase import FirestoreManager
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from TechnicalDataCalculator.TechCalculator import TechCalculator
 
-class DataController(object):
+class DataCollector(object):
     def __init__(self):
         # TODO create flags fo DB read/write
-        self.load_DB_flag = False
-        self.save_scraped_data_flag = True
+        self.load_DB_flag = True
+        self.save_scraped_data_flag = False
         # Single instance initialization
-        self.firestore_manager = FirestoreManager(env="dev")
+        self.data_manager = FirestoreManager(env="dev")
         return
-    
-    # TODO Error Handling and return success/error
-    # Save the dict of a company in Database
-    def __save_DB(self, company, dict, collection_Name):
-        db = self.firestore_manager.db
-        # Save the Dict to the database 
-        doc_ref = db.collection(collection_Name).document(company).set(dict)
-        return
-
-    # TODO Error Handling and return success/error
-    def __get_DB(self, company, collection_Name):
-        db = self.firestore_manager.db
-        docref = db.collection(collection_Name).document(company)
-        doc = docref.get()
-        if doc.exists:
-            return doc._data
-        return
-    
+           
     # Returns the Compound Sentiment Score
     def __sentiment_scores(self, sentence):
 
@@ -48,7 +31,7 @@ class DataController(object):
         # TODO Data Prepossessing
         try:
             if self.load_DB_flag:
-                dict_News_Sentiment_Score = self.__get_DB(company,"FinancialNewsData")
+                dict_News_Sentiment_Score = self.data_manager.get_DB(company,"FinancialNewsData")
             else:
                 news = share_Sansar_Scraper.scrape_News(company)
                 # Error handle empty data
@@ -67,7 +50,7 @@ class DataController(object):
                         dict_News_Sentiment_Score[key] = averageSentimentScore
 
                 if self.save_scraped_data_flag:
-                    self.__save_DB(company, dict_News_Sentiment_Score, "FinancialNewsData" )
+                    self.data_manager.save_DB(company, dict_News_Sentiment_Score, "FinancialNewsData" )
 
             # Error handle empty data
             if not dict_News_Sentiment_Score:
@@ -86,11 +69,11 @@ class DataController(object):
         share_Sansar_Scraper = ShareSansarScraper()
         try:
             if self.load_DB_flag:
-                dict_fundamental_data = self.__get_DB(company,"FundamentalData")
+                dict_fundamental_data = self.data_manager.get_DB(company,"FundamentalData")
             else:
                 dict_fundamental_data = share_Sansar_Scraper.scrape_Price_History(company)
                 if self.save_scraped_data_flag:
-                    self.__save_DB(company, dict_fundamental_data, "FundamentalData" )
+                    self.data_manager.save_DB(company, dict_fundamental_data, "FundamentalData" )
 
             # Error handle empty data
             if not dict_fundamental_data:
@@ -100,7 +83,6 @@ class DataController(object):
         except BaseException as e:
                 print(e)
                 return
-        
         return dict_fundamental_data
  
     # Moving Average Convergence Divergence (MACD), Average True Range (ATR), 
@@ -109,23 +91,28 @@ class DataController(object):
         dict_technical_data = {}
         tech_calculator = TechCalculator()
         dict_fundamental_data = self.collect_Fundamental_Data(company)
+        
         try:
-            if self.load_DB_flag:
-                dict_technical_data = self.__get_DB(company,"TechnicalData")
+            # TODO Solve circular logic for Flag 
+            # Possible Solution: Remove flag and always get data from DB first else scrape
+            if False:
+                dict_technical_data =  self.data_manager.get_DB(company,"TechnicalData")
             else:
                 # TODO Error Handle empty list
                 macd = tech_calculator.calculate_MACD(dict_fundamental_data)
+                rsi = tech_calculator.calculate_RSI(dict_fundamental_data)
+                
                 dict_technical_data = {
-                    "MACD": macd
+                    "MACD": macd,
+                    "RSI" : rsi
                     # "ATR" : tech_calculator.calculate_ATR(),
-                    # "RSI" : tech_calculator.calculate_RSI(),
                     # "MFI" : tech_calculator.calculate_MFI()
                 }
                 
                 # Save Technical data
                 if self.save_scraped_data_flag:
-                    self.__save_DB(company, dict_technical_data, "TechnicalData" )
-        # TODO 
+                     self.data_manager.save_DB(company, dict_technical_data, "TechnicalData" )
+
         except BaseException as e:
                 print(e)
                 return
@@ -137,6 +124,7 @@ class DataController(object):
     # TODO Look into Reserve Requirements including RR, RRR, CRR, and SLR indispensable tools 
     #   for Nepal Rastra Bank in regulating the country's financial system
     # TODO Find trustable data source || Problem with ShareSansar
+    # Price to Earning Ratio, Asset Liability (Balance Sheet) and Operating Margin
     def collect_Macroeconomic_Data(self):
         return
     
