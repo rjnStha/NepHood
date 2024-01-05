@@ -61,7 +61,7 @@ class TechCalculator(object):
         df.ta.rsi(close='ltp', length=14, append=True)
 
         # Plot RSI graph
-        # self.plot_RSI_Graph(df)
+        self.plot_RSI_Graph(df)
 
         # Remove unwanted data columns
         # List of columns to remove
@@ -168,56 +168,56 @@ class TechCalculator(object):
         fig.show()
     
     # Visualize RSI with Plotly
-    # def plot_RSI_Graph(self, fundamental_dataframe):
+    def plot_RSI_Graph(self, fundamental_dataframe):
 
-    #     # Create Figure
-    #     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_width=[0.25, 0.75])
-    #     print(fig)
+        # Create Figure
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_width=[0.25, 0.75])
+        
+        # Create Candlestick chart for price data
+        fig.add_trace(go.Candlestick(
+            x = fundamental_dataframe.index,
+            open = fundamental_dataframe['open'],
+            high = fundamental_dataframe['high'],
+            low = fundamental_dataframe['low'],
+            close = fundamental_dataframe['ltp'],
+            increasing_line_color = '#ff9900',
+            decreasing_line_color = 'black',
+            showlegend = False
+        ), row=1, col=1)
+        
+        
+        # Make RSI Plot
+        fig.add_trace(go.Scatter(
+            x=fundamental_dataframe.index,
+            y=fundamental_dataframe['RSI_14'],
+            line=dict(color='#ff9900', width=2),
+            showlegend=False,
+        ), row=2, col=1)
 
-    #     # Create Candlestick chart for price data
-    #     fig.add_trace(go.Candlestick(
-    #         x = fundamental_dataframe.index,
-    #         open = fundamental_dataframe['open'],
-    #         high = fundamental_dataframe['high'],
-    #         low = fundamental_dataframe['low'],
-    #         close = fundamental_dataframe['ltp'],
-    #         increasing_line_color = '#ff9900',
-    #         decreasing_line_color = 'black',
-    #         showlegend = False
-    #     ), rows=1, cols=1)
+        # Add upper/lower bounds
+        fig.update_yaxes(range=[-10, 110], row=2, col=1)
+        fig.add_hline(y=0, col=1, row=2, line_color="#666", line_width=2)
+        fig.add_hline(y=100, col=1, row=2, line_color="#666", line_width=2)
 
-    #     # Make RSI Plot
-    #     fig.add_trace(go.Scatter(
-    #         x=fundamental_dataframe.index,
-    #         y=fundamental_dataframe['rsi'],
-    #         line=dict(color='#ff9900', width=2),
-    #         showlegend=False,
-    #     ), row=2, col=1)
+        # Add overbought/oversold
+        fig.add_hline(y=30, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
+        fig.add_hline(y=70, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
 
-    #     # Add upper/lower bounds
-    #     fig.update_yaxes(range=[-10, 110], row=2, col=1)
-    #     fig.add_hline(y=0, col=1, row=2, line_color="#666", line_width=2)
-    #     fig.add_hline(y=100, col=1, row=2, line_color="#666", line_width=2)
+        # Customize font, colors, hide range slider
+        layout = go.Layout(
+            plot_bgcolor='#efefef',
+            # Font Families
+            font_family='Monospace',
+            font_color='#000000',
+            font_size=20,
+            xaxis=dict(
+                rangeslider=dict(
+                    visible=False
+                )
+            )
+        )
+        # update and display
+        fig.update_layout(layout)
+        fig.show()
 
-    #     # Add overbought/oversold
-    #     fig.add_hline(y=30, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
-    #     fig.add_hline(y=70, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
-
-    #     # Customize font, colors, hide range slider
-    #     layout = go.Layout(
-    #         plot_bgcolor='#efefef',
-    #         # Font Families
-    #         font_family='Monospace',
-    #         font_color='#000000',
-    #         font_size=20,
-    #         xaxis=dict(
-    #             rangeslider=dict(
-    #                 visible=False
-    #             )
-    #         )
-    #     )
-    #     # update and display
-    #     fig.update_layout(layout)
-    #     fig.show()
-
-    #     return
+        return
