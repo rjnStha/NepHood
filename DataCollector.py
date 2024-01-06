@@ -101,10 +101,12 @@ class DataCollector(object):
                 # TODO Error Handle empty list
                 macd = tech_calculator.calculate_MACD(dict_fundamental_data)
                 rsi = tech_calculator.calculate_RSI(dict_fundamental_data)
+                atr = tech_calculator.calculate_ATR(dict_fundamental_data)
                 
                 dict_technical_data = {
                     "MACD": macd,
-                    "RSI" : rsi
+                    "RSI" : rsi,
+                    "ATR" : atr
                     # "ATR" : tech_calculator.calculate_ATR(),
                     # "MFI" : tech_calculator.calculate_MFI()
                 }
