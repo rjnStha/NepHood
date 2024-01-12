@@ -7,7 +7,7 @@ class DataCollector(object):
     def __init__(self):
         # TODO create flags fo DB read/write
         self.load_DB_flag = True
-        self.save_scraped_data_flag = False
+        self.save_scraped_data_flag = True
         # Single instance initialization
         self.data_manager = FirestoreManager(env="dev")
         return
@@ -102,13 +102,13 @@ class DataCollector(object):
                 macd = tech_calculator.calculate_MACD(dict_fundamental_data)
                 rsi = tech_calculator.calculate_RSI(dict_fundamental_data)
                 atr = tech_calculator.calculate_ATR(dict_fundamental_data)
+                mfi = tech_calculator.calculate_MFI(dict_fundamental_data)
                 
                 dict_technical_data = {
                     "MACD": macd,
                     "RSI" : rsi,
-                    "ATR" : atr
-                    # "ATR" : tech_calculator.calculate_ATR(),
-                    # "MFI" : tech_calculator.calculate_MFI()
+                    "ATR" : atr,
+                    "MFI" : mfi
                 }
                 
                 # Save Technical data

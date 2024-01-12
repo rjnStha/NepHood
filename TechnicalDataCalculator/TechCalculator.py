@@ -12,7 +12,9 @@ import yfinance as yf
 class TechCalculator(object):
     def __init__(self):
         return
-    
+    # NOTE Analyze short-term price movements with 14 days look-back period
+    # NOTE pandas_ta uses EMA to calculate Technical Indicators which puts weight on latest data  
+
     # Convert dict to dataframe and make consumable to panda_ta lib 
     def preprocess_fundamental_data(self, fundamental_dict):
 
@@ -28,8 +30,7 @@ class TechCalculator(object):
 
         return fundamental_dataframe
     
-    # Calculate Moving Average Convergence Divergence (MACD)
-    # Default Fast and slow period 12 days and 26 days respectively while signal with 9 days
+    # Moving Average Convergence Divergence (MACD)
     def calculate_MACD(self, fundamental_dict, fast_period=12,slow_period=26, signal=9):
         df = self.preprocess_fundamental_data(fundamental_dict)
 
@@ -52,9 +53,8 @@ class TechCalculator(object):
      
     # Relative Strength Index (RSI)
     # Sliding window algorithm
-    # NOTE panda_ta calculates RSI using  Exponentially Weighted Moving Average (EWM) instead of
+    # NOTE panda_ta calculates RSI using Exponentially Weighted Moving Average (EWM) instead of
     #   Wilder-approved Simple Moving Average (SMA), EWM gives higher weight to recent data
-    # Default period 14 days
     def calculate_RSI(self, fundamental_dict, period=14):
         df = self.preprocess_fundamental_data(fundamental_dict)
 
@@ -72,8 +72,7 @@ class TechCalculator(object):
         # Reset the index to include Date as data and return as dictionary of list
         return df.reset_index().to_dict(orient='list')
    
-    # Calculate Average True Range (ATR)
-    # Default period 14 days
+    # Average True Range (ATR)
     def calculate_ATR(self, fundamental_dict, period=14):
         df = self.preprocess_fundamental_data(fundamental_dict)
         
@@ -91,11 +90,19 @@ class TechCalculator(object):
         return df.reset_index().to_dict(orient='list')
    
     # Money Flow Index (MFI)
-    def calculate_MFI(self):
-        
-        return
-    
-    # Visualize MACD with Plotly
+    def calculate_MFI(self, fundamental_dict, period=14):
+        df = self.preprocess_fundamental_data(fundamental_dict)
+        df.ta.mfi(close='ltp', length=period, append=True)
+        self.plot_MFI_Graph(df)
+        # Remove unwanted data columns
+        # List of columns to remove
+        columns_to_remove = ["high","low","ltp","open","volume"]
+        df = df.drop(columns=columns_to_remove)
+
+        return df.reset_index().to_dict(orient='list')
+
+    # Visualize Technical indicators with Plotly
+
     def plot_MACD_Graph(self, fundamental_dataframe):
         # Force lowercase (optional)
         fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
@@ -195,68 +202,83 @@ class TechCalculator(object):
         fig.update_layout(layout)
         fig.show()
     
-    # Visualize RSI with Plotly
     def plot_RSI_Graph(self, fundamental_dataframe):
         # Force lowercase (optional)
         fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
 
-        # Create Figure
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=False, row_width=[0.25, 0.75])
-        
+        # Construct a 2 x 1 Plotly figure
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0, horizontal_spacing=1, row_heights=[0.6, 0.2, 0.2])
+
         # price Line
         fig.append_trace(
             go.Scatter(
                 x=fundamental_dataframe.index,
                 y=fundamental_dataframe['open'],
                 line=dict(color='#ff9900', width=1),
-                name='open',
-                showlegend=True,
-                legendgroup='1',
+                name='Open',
+                showlegend=True
             ), row=1, col=1
         )
 
-        # Create Candlestick chart for price data
-        fig.add_trace(go.Candlestick(
-            x = fundamental_dataframe.index,
-            open = fundamental_dataframe['open'],
-            high = fundamental_dataframe['high'],
-            low = fundamental_dataframe['low'],
-            close = fundamental_dataframe['ltp'],
-            increasing_line_color = '#ff9900',
-            decreasing_line_color = 'black',
-            showlegend = False
-        ), row=1, col=1)
-        
+        # Candlestick chart for pricing
+        fig.append_trace(
+            go.Candlestick(
+                x=fundamental_dataframe.index,
+                open=fundamental_dataframe['open'],
+                high=fundamental_dataframe['high'],
+                low=fundamental_dataframe['low'],
+                close=fundamental_dataframe['ltp'],
+                increasing_line_color='Green',
+                decreasing_line_color='Red',
+                name='Candlestick Open Price',
+                showlegend=True
+            ), row=1, col=1
+        )
+
+        # Volume
+        fig.add_trace(
+            go.Scatter(
+                x=fundamental_dataframe.index,
+                y=fundamental_dataframe['volume'],
+                name = 'Volume',
+                fill='tozeroy',
+                marker=dict(color='rgba(0, 0, 255, 0.5)'),
+                showlegend=True
+            ), row=2,col=1
+        )        
         
         # Make RSI Plot
         fig.add_trace(go.Scatter(
             x=fundamental_dataframe.index,
             y=fundamental_dataframe['rsi_14'],
             line=dict(color='#ff9900', width=2),
-            showlegend=False,
-        ), row=2, col=1)
+            showlegend=True,
+            name='RSI(14)'
+        ), row=3, col=1)
 
         # Add upper/lower bounds
-        fig.update_yaxes(range=[-10, 110], row=2, col=1)
-        fig.add_hline(y=0, col=1, row=2, line_color="#666", line_width=2)
-        fig.add_hline(y=100, col=1, row=2, line_color="#666", line_width=2)
+        fig.update_yaxes(range=[-10, 110], row=3, col=1)
+        fig.add_hline(y=0, col=1, row=3, line_color="#666", line_width=2)
+        fig.add_hline(y=100, col=1, row=3, line_color="#666", line_width=2)
 
         # Add overbought/oversold
-        fig.add_hline(y=30, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
-        fig.add_hline(y=70, col=1, row=2, line_color='#336699', line_width=2, line_dash='dash')
+        fig.add_hline(y=30, col=1, row=3, line_color='#336699', line_width=2, line_dash='dash')
+        fig.add_hline(y=70, col=1, row=3, line_color='#336699', line_width=2, line_dash='dash')
 
-        # Customize font, colors, hide range slider
+        # Make it pretty
         layout = go.Layout(
             plot_bgcolor='#efefef',
             # Font Families
             font_family='Monospace',
             font_color='#000000',
-            font_size=20,
-            xaxis=dict(
-                rangeslider=dict(
-                    visible=False
-                )
-            )
+            font_size=14,
+            # Axis
+            xaxis=dict(rangeslider=dict(visible=False), showgrid=True, griddash='dot'),
+            xaxis2=dict(rangeslider=dict(visible=False), showgrid=True, griddash='dot'),
+            xaxis3=dict(rangeslider=dict(visible=False), showgrid=True, griddash='dot'),
+            yaxis=dict(title='Stock Price and Volume', showgrid=True, griddash = 'dot'),
+            yaxis2=dict(title='Volume', showgrid=True, griddash = 'dot'),
+            yaxis3=dict(title='RSI', showgrid=True, griddash = 'dot'),
         )
         # update and display
         fig.update_layout(layout)
@@ -309,7 +331,7 @@ class TechCalculator(object):
             ), row=2,col=1
         )
 
-        # RSI
+        # ATR
         fig.append_trace(
             go.Scatter(
                 x=fundamental_dataframe.index,
@@ -334,6 +356,85 @@ class TechCalculator(object):
             yaxis=dict(title='Stock Price and Volume', showgrid=True, griddash = 'dot'),
             yaxis2=dict(title='Volume', showgrid=True, griddash = 'dot'),
             yaxis3=dict(title='ATR', showgrid=True, griddash = 'dot'),
+        )
+
+        # Update options and show plot
+        fig.update_layout(layout)
+        fig.show()
+
+        return
+    
+    def plot_MFI_Graph(self, fundamental_dataframe):
+
+        # Force lowercase (optional)
+        fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
+
+        # Construct a 2 x 1 Plotly figure
+        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0, horizontal_spacing=1, row_heights=[0.6, 0.2, 0.2])
+
+        # price Line
+        fig.append_trace(
+            go.Scatter(
+                x=fundamental_dataframe.index,
+                y=fundamental_dataframe['open'],
+                line=dict(color='#ff9900', width=1),
+                name='Open',
+                showlegend=True
+            ), row=1, col=1
+        )
+
+        # Candlestick chart for pricing
+        fig.append_trace(
+            go.Candlestick(
+                x=fundamental_dataframe.index,
+                open=fundamental_dataframe['open'],
+                high=fundamental_dataframe['high'],
+                low=fundamental_dataframe['low'],
+                close=fundamental_dataframe['ltp'],
+                increasing_line_color='Green',
+                decreasing_line_color='Red',
+                name='Candlestick Open Price',
+                showlegend=True
+            ), row=1, col=1
+        )
+
+        # Volume
+        fig.add_trace(
+            go.Scatter(
+                x=fundamental_dataframe.index,
+                y=fundamental_dataframe['volume'],
+                name = 'Volume',
+                fill='tozeroy',
+                marker=dict(color='rgba(0, 0, 255, 0.5)'),
+                showlegend=True
+            ), row=2,col=1
+        )
+
+        # MFI
+        fig.append_trace(
+            go.Scatter(
+                x=fundamental_dataframe.index,
+                y=fundamental_dataframe['mfi_14'],
+                line=dict(color='#ff9900', width=2),
+                name='MFI(14)',
+                showlegend=True,
+            ), row=3, col=1
+        )
+
+        # Make it pretty
+        layout = go.Layout(
+            plot_bgcolor='#efefef',
+            # Font Families
+            font_family='Monospace',
+            font_color='#000000',
+            font_size=14,
+            # Axis
+            xaxis=dict(rangeslider=dict(visible=False), showgrid=True, griddash='dot'),
+            xaxis2=dict(rangeslider=dict(visible=False), showgrid=True, griddash='dot'),
+            xaxis3=dict(rangeslider=dict(visible=False), showgrid=True, griddash='dot'),
+            yaxis=dict(title='Stock Price and Volume', showgrid=True, griddash = 'dot'),
+            yaxis2=dict(title='Volume', showgrid=True, griddash = 'dot'),
+            yaxis3=dict(title='MFI', showgrid=True, griddash = 'dot'),
         )
 
         # Update options and show plot
