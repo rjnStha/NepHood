@@ -2,6 +2,7 @@ from ShareSansar.ShareSansarScraper import ShareSansarScraper
 from Firebase.Firebase import FirestoreManager
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from TechnicalDataCalculator.TechCalculator import TechCalculator
+from ApiRequest.NRBForexAPI import NRBForexAPI
 
 class DataCollector(object):
     def __init__(self):
@@ -125,9 +126,31 @@ class DataCollector(object):
     # Treasury Bill and Commercial Bank Interest Rate
     # TODO Look into Reserve Requirements including RR, RRR, CRR, and SLR indispensable tools 
     #   for Nepal Rastra Bank in regulating the country's financial system
-    # TODO Find trustable data source || Problem with ShareSansar
-    # Price to Earning Ratio, Asset Liability (Balance Sheet) and Operating Margin
+    #   Price to Earning Ratio, Asset Liability (Balance Sheet) and Operating Margin
     def collect_Macroeconomic_Data(self):
+        dict_macro_data = {}
+        share_Sansar_Scraper = ShareSansarScraper()
+        nrb_forex_api = NRBForexAPI()
+
+        try:
+            remittance = share_Sansar_Scraper.scarpe_Remittance()
+            inflation = share_Sansar_Scraper.scarpe_Inflation()
+            # Specify from and to date to get specific data
+            exchange_rate_US = nrb_forex_api.get_US_Rate()
+
+            dict_macro_data = {
+                    "remittance": remittance,
+                    "inflation" : inflation,
+                    "exchangeRateUS" : exchange_rate_US
+            }
+
+            # Save Technical data
+            if self.save_scraped_data_flag:
+                    self.data_manager.save_DB(dict_macro_data, "MacroEconomicData" )
+
+        except BaseException as e:
+            return
+        
         return
     
     
