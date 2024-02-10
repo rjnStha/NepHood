@@ -53,7 +53,7 @@ class ShareSansarScraper(Scraper):
                             news_dict[news_date] = [news]
 
                 except BaseException as e:
-                    raise Exception()
+                    raise Exception("Error gettting news form Page")
                 
                 # Click the next navigate button for new list of news
                 self.driver.find_element(By.XPATH,'//*[@id="myTableCNews_next"]').click()

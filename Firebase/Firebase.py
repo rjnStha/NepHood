@@ -27,7 +27,7 @@ class FirestoreManager:
         doc = docref.get()
         if doc.exists:
             return doc._data
-        return
+        return None
     
     # Save file
     def save_to_csv(self, company, collection_Name):
@@ -49,8 +49,3 @@ class FirestoreManager:
             rows = zip(*data.values())
             for row in rows:
                 writer.writerow(dict(zip(fieldnames, row)))
-
-# Testing
-if __name__ == '__main__':
-    f = ShareSansarDBManager()
-    f.save_to_csv("nica","TechnicalData")
