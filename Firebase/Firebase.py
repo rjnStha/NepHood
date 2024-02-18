@@ -10,7 +10,7 @@ class FirestoreManager:
     # NOTE Alternate solution : Singleton Pattern
     def __init__(self, env) -> None:
         # Credentials
-        cred = credentials.Certificate(r"D:\AI\ainepse-firebaseKey.json")
+        cred = credentials.Certificate('Firebase/ainepse-firebaseKey.json')
         firebase_admin.initialize_app(cred)
         self.db = firestore.client()
     

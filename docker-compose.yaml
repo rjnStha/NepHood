@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  nephood:
+    build: .
+    image: rjnstha/nephood
+    container_name: nephood_c
+    # ports:
+    volumes:
+      - local_v:/app
+
+# Create named volume and map the the local folder
+volumes:
+  local_v:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: .
