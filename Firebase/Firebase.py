@@ -5,7 +5,7 @@ from firebase_admin import firestore
 class BuffettNoEnvironment(Exception):
     pass
 
-class FirestoreManager:
+class FirestoreManager(object):
     # Initialize once per each run
     # NOTE Alternate solution : Singleton Pattern
     def __init__(self, env) -> None:
@@ -16,36 +16,53 @@ class FirestoreManager:
     
     # TODO Error Handling and return success/error
     # Save the dict of a company in Database
-    def save_DB(self, company, dict, collection_Name):
-        # Save the Dict to the database 
-        doc_ref = self.db.collection(collection_Name).document(company).set(dict)
+    def save_DB(self, doc_Name, dict, collection_Name):
+        # Save the Dict to the database
+        doc_ref = self.db.collection(collection_Name).document(doc_Name).set(dict)
         return
 
     # TODO Error Handling and return success/error
-    def get_DB(self, company, collection_Name):
-        docref = self.db.collection(collection_Name).document(company)
+    def get_DB(self, doc_Name, collection_Name):
+        docref = self.db.collection(collection_Name).document(doc_Name)
         doc = docref.get()
         if doc.exists:
             return doc._data
         return None
     
-    # Save file
-    def save_to_csv(self, company, collection_Name):
-        data_dict = self.get_DB(company,collection_Name)
-        data_macd = data_dict["MACD"]
-        data_rsi = data_dict["RSI"]
-        data = data_macd
-        # Write data to CSV file
-        with open('output.csv', 'w', newline='') as csvfile:
-            
-            fieldnames = data.keys()
+    def delete_Collection(self, collection_Name):
+        collection_ref = self.db.collection(collection_Name)
+        batchSize = 500
+        self.__delete_Collection__InBatches(collection_ref, batchSize)
+        collection_ref.delete()
 
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    def __delete_Collection__InBatches(self, coll_ref, batch_size):
+        docs = coll_ref.limit(batch_size).stream()
+        deleted = 0
+        for doc in docs:
+            print(f'Deleting doc {doc.id} => {doc.to_dict()}')
+            doc.reference.delete()
+            deleted += 1
+
+        if deleted >= batch_size:
+            return self.__delete_Collection__InBatches(coll_ref, batch_size)
+    
+    # # Save file
+    # def save_to_csv(self, company, collection_Name):
+    #     data_dict = self.get_DB(company,collection_Name)
+    #     data_macd = data_dict["MACD"]
+    #     data_rsi = data_dict["RSI"]
+    #     data = data_macd
+    #     # Write data to CSV file
+    #     with open('output.csv', 'w', newline='') as csvfile:
             
-            # Write header
-            writer.writeheader()
+    #         fieldnames = data.keys()
+
+    #         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             
-            # Transpose the data and write rows
-            rows = zip(*data.values())
-            for row in rows:
-                writer.writerow(dict(zip(fieldnames, row)))
+    #         # Write header
+    #         writer.writeheader()
+            
+    #         # Transpose the data and write rows
+    #         rows = zip(*data.values())
+    #         for row in rows:
+    #             writer.writerow(dict(zip(fieldnames, row)))
