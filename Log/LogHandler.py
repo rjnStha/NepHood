@@ -1,44 +1,46 @@
 import logging
+import threading
 
+# Singleton Log Class
 class LogHandler(object):
-    def __init__(self):
-        # Create a logger for info messages
-        self.info_logger = logging.getLogger('info_logger')
-        self.info_logger.setLevel(logging.INFO)
-        self.info_handler = logging.FileHandler("InfoLog.log")
-        self.info_handler.setLevel(logging.INFO)
-        self.info_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        self.info_handler.setFormatter(self.info_formatter)
-        self.info_logger.addHandler(self.info_handler)
-        
-        # Create a logger for error messages
-        self.error_logger = logging.getLogger('error_logger')
-        self.error_logger.setLevel(logging.ERROR)
-        self.error_handler = logging.FileHandler("ErrorLog.log")
-        self.error_handler.setLevel(logging.ERROR)
-        self.error_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        self.error_handler.setFormatter(self.error_formatter)
-        self.error_logger.addHandler(self.error_handler)
+    _log_instance = None
+    # Lock to ensure thread safety
+    _lock = threading.Lock()  
+
+    @classmethod
+    def _get_instance(cls):
+        if cls._log_instance is None:
+            with cls._lock:
+                # Double check locking for efficiency
+                if cls._log_instance is None:  
+                    cls._log_instance = cls._create_logger()
+        return cls._log_instance
     
-    def log_info(self, message):
-        self.info_logger.info(message)
+    @staticmethod
+    def log_info(e):
+        LogHandler._get_instance().info(e)
     
-    def log_error(self, message):
-        self.error_logger.error(message)
+    @staticmethod
+    def log_error(e):
+        LogHandler._get_instance().error(e)
 
-    def remove_duplicates(self, input_file):
-        # Set to store unique lines
-        unique_lines = set()
+    @staticmethod
+    def log_warning(e):
+        LogHandler._get_instance().warning(e)
 
-        # Open input file for reading
-        with open(input_file, 'r') as file:
-            # Read each line in the file
-            for line in file:
-                # Add the line to the set of unique lines
-                unique_lines.add(line)
+    @staticmethod
+    def _create_logger():
+        logger = logging.getLogger(__name__)
+        # Set logger level to lowest level
+        logger.setLevel(logging.DEBUG)  
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-        # Open output file for writing
-        with open(input_file, 'w') as file:
-            # Write unique lines to the output file
-            for line in unique_lines:
-                file.write(line) 
+       # Create a logger with INFO level hence it will log ERROR as well, a higher severity level 
+        handler = logging.FileHandler("Log.log")
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+
+        # Add both handlers to the logger
+        logger.addHandler(handler)
+
+        return logger

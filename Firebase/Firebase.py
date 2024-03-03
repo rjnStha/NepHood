@@ -1,50 +1,68 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
+import threading
 
-class BuffettNoEnvironment(Exception):
-    pass
-
+# Singleton Firestore Class
 class FirestoreManager(object):
-    # Initialize once per each run
-    # NOTE Alternate solution : Singleton Pattern
-    def __init__(self, env) -> None:
-        # Credentials
+    _firestore_instance = None
+    # Lock to ensure thread safety
+    _lock = threading.Lock()
+
+    def __init__(self, value):
+        self.value = value
+
+    @classmethod
+    def _get_instance(cls):
+        if cls._firestore_instance is None:
+            with cls._lock:
+                # Double check locking for efficiency
+                if cls._firestore_instance is None:  
+                    cls._firestore_instance = cls._create_firestore_client()
+        return cls._firestore_instance
+
+    @staticmethod
+    def _create_firestore_client():
+        # Initialize Firestore client
         cred = credentials.Certificate('Firebase/ainepse-firebaseKey.json')
         firebase_admin.initialize_app(cred)
-        self.db = firestore.client()
+        return firestore.client()
     
-    # TODO Error Handling and return success/error
-    # Save the dict of a company in Database
-    def save_DB(self, doc_Name, dict, collection_Name):
+    # Save the dict of a company in Database    
+    @staticmethod
+    def save_doc_DB(doc_Name, dict, collection_Name):
         # Save the Dict to the database
-        doc_ref = self.db.collection(collection_Name).document(doc_Name).set(dict)
+        doc_ref = FirestoreManager._get_instance().collection(collection_Name).document(doc_Name).set(dict)
         return
 
-    # TODO Error Handling and return success/error
-    def get_DB(self, doc_Name, collection_Name):
-        docref = self.db.collection(collection_Name).document(doc_Name)
+    @staticmethod
+    def get_doc_DB(doc_Name, collection_Name):
+        docref = FirestoreManager._get_instance().collection(collection_Name).document(doc_Name)
         doc = docref.get()
-        if doc.exists:
-            return doc._data
+        if doc.exists: return doc._data
         return None
     
-    def delete_Collection(self, collection_Name):
-        collection_ref = self.db.collection(collection_Name)
+    @staticmethod
+    def get_collectionRef_DB(collection_Name):
+        return FirestoreManager._get_instance().collection(collection_Name)
+    
+    @staticmethod
+    def delete_Collection(collection_Name):
+        collection_ref = FirestoreManager._get_instance().collection(collection_Name)
         batchSize = 500
-        self.__delete_Collection__InBatches(collection_ref, batchSize)
-        collection_ref.delete()
+        FirestoreManager._delete_Collection_InBatches(collection_ref, batchSize)
 
-    def __delete_Collection__InBatches(self, coll_ref, batch_size):
+    @staticmethod
+    def _delete_Collection_InBatches(coll_ref, batch_size):
         docs = coll_ref.limit(batch_size).stream()
         deleted = 0
         for doc in docs:
-            print(f'Deleting doc {doc.id} => {doc.to_dict()}')
+            # print(f'Deleting doc {doc.id} => {doc.to_dict()}')
             doc.reference.delete()
             deleted += 1
 
         if deleted >= batch_size:
-            return self.__delete_Collection__InBatches(coll_ref, batch_size)
+            return FirestoreManager._delete_Collection_InBatches(coll_ref, batch_size)
     
     # # Save file
     # def save_to_csv(self, company, collection_Name):
