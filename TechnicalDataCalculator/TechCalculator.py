@@ -1,120 +1,154 @@
 
 import pandas as pd
-import pandas_ta as ta
 
 # Graph with Plotly
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import numpy as np
 
-import yfinance as yf
-
 class TechCalculator(object):
-    def __init__(self):
-        return
-    # NOTE Analyze short-term price movements with 14 days look-back period
-    # NOTE pandas_ta uses EMA to calculate Technical Indicators which puts weight on latest data  
 
-    # Convert dict to dataframe and make consumable to panda_ta lib 
-    def preprocess_fundamental_data(self, fundamental_dict):
+    def __init__(self, fundamental_dict):
+        self.df = self._preprocess_fundamental_data(fundamental_dict)
+    
+    # Convert dict to dataframe and make consumable to panda_ta lib
+    @staticmethod
+    def _preprocess_fundamental_data( fundamental_dict):
 
         # Create DataFrame object from Dict
-        fundamental_dataframe = pd.DataFrame.from_dict(fundamental_dict)
+        df = pd.DataFrame.from_dict(fundamental_dict)
+        # column_dtype = fundamental_dataframe["ltp"].dtype
+        # print("Data type of column '{}' is: {}".format(column_dtype))
+
         # Set Date as the index of the DataFrame
-        fundamental_dataframe.set_index('date',inplace=True)
+        df.set_index('date',inplace=True)
         
-        # NOTE Sort Index with oldest date top of the order since
-        #       pandas_ta uses exponential moving average (EMA) that gives higher weighting to recent prices
-        fundamental_dataframe = fundamental_dataframe.sort_index(ascending=True)
+        # NOTE Sort Index with oldest date top of the order giving higher priority to newest data 
+        #   when calculation technical indicators
+        df = df.sort_index(ascending=True)
         # To filter the data with specific date --> fundamental_dataframe.loc['2013-07-14':'2019-02-22']
 
-        return fundamental_dataframe
+        return df
+    
+    def get_technical_indicators(self):
+        # Calculate all the technical indicators
+        self.calculate_MACD()
+        self.calculate_RSI()
+        self.calculate_MFI()
+        self.calculate_ATR()
+        
+        # Plot graph
+        # self.plot_MACD_Graph()
+        # self.plot_RSI_Graph()
+        # self.plot_ATR_Graph()
+        # self.plot_MFI_Graph()
+        
+        # Drop columns except date and MACD for consise data 
+        new_df = self.df.drop(["high","low","ltp","open","volume"],axis=1)
+        print(new_df.head(30))
+        # Convention: Descending order by date, remove date as index and convert df to dict
+        dict_technical = new_df.sort_index(ascending = False).reset_index().to_dict(orient='list')
+
+        return dict_technical
     
     # Moving Average Convergence Divergence (MACD)
-    def calculate_MACD(self, fundamental_dict, fast_period=12,slow_period=26, signal=9):
-        df = self.preprocess_fundamental_data(fundamental_dict)
+    # Based on the convergence and divergence of two exponential moving averages
+    def calculate_MACD(self, short_period=12,long_period=26, signal=9):
+        try:
+            # short-term exponential moving average (EMA)
+            EMA_short = self.df['ltp'].ewm(span=short_period, min_periods=1, adjust=False).mean()
+            # long-term exponential moving average (EMA)
+            EMA_long = self.df['ltp'].ewm(span=long_period, min_periods=1, adjust=False).mean()
+            # MACD line
+            MACD_Line = EMA_short - EMA_long
+            # Signal line (9-day EMA of MACD)
+            signal_line = MACD_Line.ewm(span=signal, min_periods=1, adjust=False).mean()
+            # MACD histogram
+            macd_histogram = MACD_Line - signal_line
 
-        # Calculate MACD values using the pandas_ta library
-        # MACD Line = (12-day EMA - 26-day EMA)
-        # Signal Line = 9-day EMA of MACD Line
-        # MACD Histogram = MACD Line - Signal Line
-        df.ta.macd(close='ltp', fast=fast_period, slow=slow_period, signal=signal, append=True)
-        
-        # Plot MACD graph
-        self.plot_MACD_Graph(df)
-        
-        # Remove unwanted data columns
-        # List of columns to remove
-        columns_to_remove = ["high","low","ltp","open","volume"]
-        df = df.drop(columns=columns_to_remove)
+            # Add MACD components to DataFrame
+            self.df[f'macd_{short_period}_{long_period}_{signal}'] = MACD_Line
+            self.df[f'macds_{short_period}_{long_period}_{signal}'] = signal_line
+            self.df[f'macdh_{short_period}_{long_period}_{signal}'] = macd_histogram
 
-        # Reset the index to include Date as data and return as dictionary of list
-        return df.reset_index().to_dict(orient='list')
+        except Exception as e: raise Exception("Technical indicator: MACD", e)
      
     # Relative Strength Index (RSI)
-    # Sliding window algorithm
-    # NOTE panda_ta calculates RSI using Exponentially Weighted Moving Average (EWM) instead of
+    # momentum oscillator that measures the speed and change of price movements
+    # Calculated using Exponentially Weighted Moving Average (EWM) instead of
     #   Wilder-approved Simple Moving Average (SMA), EWM gives higher weight to recent data
-    def calculate_RSI(self, fundamental_dict, period=14):
-        df = self.preprocess_fundamental_data(fundamental_dict)
-
-        # Calculate the RSI where length = lookback period in days
-        df.ta.rsi(close='ltp', length=period, append=True)
+    def calculate_RSI(self, window=14, ema=True):
+        try:
+            
+            # Calculate price changes
+            delta = self.df['ltp'].diff()
+            # Define up and down movements
+            up = delta.where(delta > 0, 0)
+            down = abs(delta.where(delta < 0, 0))
+            # Calculate average gain and loss
+            if ema:
+                # Use Exponential Moving average
+                avg_gain = up.ewm(com=window-1, adjust=False, min_periods=1).mean()
+                avg_loss = down.ewm(com=window-1, adjust=False, min_periods=1).mean()
+            else:
+                # Use Simple moving averages
+                avg_gain = up.rolling(window=window, min_periods=1).mean()
+                avg_loss = down.rolling(window=window, min_periods=1).mean()
+            # Calculate relative strength
+            rs = avg_gain / avg_loss
+            # Calculate RSI
+            rsi = 100 - (100 / (1 + rs))
+            self.df["rsi_14"] = rsi
         
-        # Plot RSI graph
-        self.plot_RSI_Graph(df)
-
-        # Remove unwanted data columns
-        # List of columns to remove
-        columns_to_remove = ["high","low","ltp","open","volume"]
-        df = df.drop(columns=columns_to_remove)
-
-        # Reset the index to include Date as data and return as dictionary of list
-        return df.reset_index().to_dict(orient='list')
+        except Exception as e: raise Exception("Technical indicator: RSI", e)
    
     # Average True Range (ATR)
-    def calculate_ATR(self, fundamental_dict, period=14):
-        df = self.preprocess_fundamental_data(fundamental_dict)
+    # measures market volatility with the average range between the highest and lowest prices
+    def calculate_ATR(self, window=14):
+        try:
+            # Current high - current low
+            high_low = self.df['high'] - self.df['low']
+            # Absolute value of Curent High - Prev ltp
+            high_close = abs(self.df['high'] - self.df['ltp'].shift())
+            # Absolute value of Curent low - Prev ltp
+            low_close = abs(self.df['low'] - self.df['ltp'].shift())
+            # Max of the high_low, high_close and low_close
+            true_range = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+            # ATR with EMA using com 
+            atr = true_range.ewm(com=window-1, adjust=False).mean()
+            self.df["atr_14"] = atr
         
-        # Calculate the RSI where length = lookback period in days
-        df.ta.atr(close=df['ltp'], length=period, append=True)
-
-         # Plot ATR graph
-        self.plot_ATR_Graph(df)
-
-        # Remove unwanted data columns
-        # List of columns to remove
-        columns_to_remove = ["high","low","ltp","open","volume"]
-        df = df.drop(columns=columns_to_remove)
-
-        return df.reset_index().to_dict(orient='list')
+        except Exception as e: raise Exception("Technical indicator: ATR", e)
    
     # Money Flow Index (MFI)
-    def calculate_MFI(self, fundamental_dict, period=14):
-        df = self.preprocess_fundamental_data(fundamental_dict)
-        df.ta.mfi(close='ltp', length=period, append=True)
-        self.plot_MFI_Graph(df)
-        # Remove unwanted data columns
-        # List of columns to remove
-        columns_to_remove = ["high","low","ltp","open","volume"]
-        df = df.drop(columns=columns_to_remove)
+    # strength of money flowing into and out of a security
+    def calculate_MFI(self, window=14):
+        try:
 
-        return df.reset_index().to_dict(orient='list')
+            # Typical Price
+            TP = (self.df['high'] + self.df['low'] + self.df['ltp']) / 3
+            # Money Flow (MF)
+            MF = TP * self.df['volume']
+            # Positive Money Flow (PMF) and Negative Money Flow (NMF)
+            PMF = MF.where(TP > TP.shift(1), 0)
+            NMF = MF.where(TP < TP.shift(1), 0)
+            # Money Flow Ratio (MFR) 
+            MFR = PMF.rolling(window=window).sum() / NMF.rolling(window=window).sum()
+            # Money Flow Index (MFI)
+            self.df['mfi_14'] = 100 - (100 / (1 + MFR))
+        
+        except Exception as e: raise Exception("Technical indicator: MFI", e)
 
     # Visualize Technical indicators with Plotly
-
-    def plot_MACD_Graph(self, fundamental_dataframe):
-        # Force lowercase (optional)
-        fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
-        
+    def plot_MACD_Graph(self):                
         # Construct a 2 x 1 Plotly figure
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0, horizontal_spacing=1, row_heights=[0.6, 0.2, 0.2])
 
         # price Line
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['open'],
+                x=self.df.index,
+                y=self.df['open'],
                 line=dict(color='#ff9900', width=1),
                 name='Open',
                 showlegend=True
@@ -124,11 +158,11 @@ class TechCalculator(object):
         # Candlestick chart for pricing
         fig.append_trace(
             go.Candlestick(
-                x=fundamental_dataframe.index,
-                open=fundamental_dataframe['open'],
-                high=fundamental_dataframe['high'],
-                low=fundamental_dataframe['low'],
-                close=fundamental_dataframe['ltp'],
+                x=self.df.index,
+                open=self.df['open'],
+                high=self.df['high'],
+                low=self.df['low'],
+                close=self.df['ltp'],
                 increasing_line_color='Green',
                 decreasing_line_color='Red',
                 name='Candlestick Open Price',
@@ -139,8 +173,8 @@ class TechCalculator(object):
         # Volume
         fig.add_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['volume'],
+                x=self.df.index,
+                y=self.df['volume'],
                 name = 'Volume',
                 fill='tozeroy',
                 marker=dict(color='rgba(0, 0, 255, 0.5)'),
@@ -151,8 +185,8 @@ class TechCalculator(object):
         # Fast Signal (%k) / MACD Line
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['macd_12_26_9'],
+                x=self.df.index,
+                y=self.df['macd_12_26_9'],
                 line=dict(color='#ff9900', width=2),
                 name='MACD',
                 showlegend=True,
@@ -162,8 +196,8 @@ class TechCalculator(object):
         # Slow signal (%d)/ Signal Line
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['macds_12_26_9'],
+                x=self.df.index,
+                y=self.df['macds_12_26_9'],
                 line=dict(color='#000000', width=2),
                 showlegend=True,
                 name='Signal'
@@ -171,12 +205,12 @@ class TechCalculator(object):
         )
 
         # Colorize the histogram values
-        colors = np.where(fundamental_dataframe['macdh_12_26_9'] < 0, '#000', '#ff9900')
+        colors = np.where(self.df['macdh_12_26_9'] < 0, '#000', '#ff9900')
         # Plot the histogram
         fig.append_trace(
             go.Bar(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['macdh_12_26_9'],
+                x=self.df.index,
+                y=self.df['macdh_12_26_9'],
                 name='Histogram',
                 marker_color=colors,
             ), row=3, col=1
@@ -202,18 +236,15 @@ class TechCalculator(object):
         fig.update_layout(layout)
         fig.show()
     
-    def plot_RSI_Graph(self, fundamental_dataframe):
-        # Force lowercase (optional)
-        fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
-
+    def plot_RSI_Graph(self):
         # Construct a 2 x 1 Plotly figure
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0, horizontal_spacing=1, row_heights=[0.6, 0.2, 0.2])
 
         # price Line
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['open'],
+                x=self.df.index,
+                y=self.df['open'],
                 line=dict(color='#ff9900', width=1),
                 name='Open',
                 showlegend=True
@@ -223,11 +254,11 @@ class TechCalculator(object):
         # Candlestick chart for pricing
         fig.append_trace(
             go.Candlestick(
-                x=fundamental_dataframe.index,
-                open=fundamental_dataframe['open'],
-                high=fundamental_dataframe['high'],
-                low=fundamental_dataframe['low'],
-                close=fundamental_dataframe['ltp'],
+                x=self.df.index,
+                open=self.df['open'],
+                high=self.df['high'],
+                low=self.df['low'],
+                close=self.df['ltp'],
                 increasing_line_color='Green',
                 decreasing_line_color='Red',
                 name='Candlestick Open Price',
@@ -238,8 +269,8 @@ class TechCalculator(object):
         # Volume
         fig.add_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['volume'],
+                x=self.df.index,
+                y=self.df['volume'],
                 name = 'Volume',
                 fill='tozeroy',
                 marker=dict(color='rgba(0, 0, 255, 0.5)'),
@@ -249,8 +280,8 @@ class TechCalculator(object):
         
         # Make RSI Plot
         fig.add_trace(go.Scatter(
-            x=fundamental_dataframe.index,
-            y=fundamental_dataframe['rsi_14'],
+            x=self.df.index,
+            y=self.df['rsi_14'],
             line=dict(color='#ff9900', width=2),
             showlegend=True,
             name='RSI(14)'
@@ -286,18 +317,15 @@ class TechCalculator(object):
 
         return
     
-    def plot_ATR_Graph(self, fundamental_dataframe):
-        # Force lowercase (optional)
-        fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
-
-        # Construct a 2 x 1 Plotly figure
+    def plot_ATR_Graph(self):
+       # Construct a 2 x 1 Plotly figure
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0, horizontal_spacing=1, row_heights=[0.6, 0.2, 0.2])
 
         # price Line
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['open'],
+                x=self.df.index,
+                y=self.df['open'],
                 line=dict(color='#ff9900', width=1),
                 name='Open',
                 showlegend=True
@@ -307,11 +335,11 @@ class TechCalculator(object):
         # Candlestick chart for pricing
         fig.append_trace(
             go.Candlestick(
-                x=fundamental_dataframe.index,
-                open=fundamental_dataframe['open'],
-                high=fundamental_dataframe['high'],
-                low=fundamental_dataframe['low'],
-                close=fundamental_dataframe['ltp'],
+                x=self.df.index,
+                open=self.df['open'],
+                high=self.df['high'],
+                low=self.df['low'],
+                close=self.df['ltp'],
                 increasing_line_color='Green',
                 decreasing_line_color='Red',
                 name='Candlestick Open Price',
@@ -322,8 +350,8 @@ class TechCalculator(object):
         # Volume
         fig.add_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['volume'],
+                x=self.df.index,
+                y=self.df['volume'],
                 name = 'Volume',
                 fill='tozeroy',
                 marker=dict(color='rgba(0, 0, 255, 0.5)'),
@@ -334,8 +362,8 @@ class TechCalculator(object):
         # ATR
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['atrr_14'],
+                x=self.df.index,
+                y=self.df['atr_14'],
                 line=dict(color='#ff9900', width=2),
                 name='ATR(14)',
                 showlegend=True,
@@ -363,11 +391,10 @@ class TechCalculator(object):
         fig.show()
 
         return
-    
-    def plot_MFI_Graph(self, fundamental_dataframe):
 
+    def plot_MFI_Graph(self):
         # Force lowercase (optional)
-        fundamental_dataframe.columns = [x.lower() for x in fundamental_dataframe.columns]
+        self.df.columns = [x.lower() for x in self.df.columns]
 
         # Construct a 2 x 1 Plotly figure
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0, horizontal_spacing=1, row_heights=[0.6, 0.2, 0.2])
@@ -375,8 +402,8 @@ class TechCalculator(object):
         # price Line
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['open'],
+                x=self.df.index,
+                y=self.df['open'],
                 line=dict(color='#ff9900', width=1),
                 name='Open',
                 showlegend=True
@@ -386,11 +413,11 @@ class TechCalculator(object):
         # Candlestick chart for pricing
         fig.append_trace(
             go.Candlestick(
-                x=fundamental_dataframe.index,
-                open=fundamental_dataframe['open'],
-                high=fundamental_dataframe['high'],
-                low=fundamental_dataframe['low'],
-                close=fundamental_dataframe['ltp'],
+                x=self.df.index,
+                open=self.df['open'],
+                high=self.df['high'],
+                low=self.df['low'],
+                close=self.df['ltp'],
                 increasing_line_color='Green',
                 decreasing_line_color='Red',
                 name='Candlestick Open Price',
@@ -401,8 +428,8 @@ class TechCalculator(object):
         # Volume
         fig.add_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['volume'],
+                x=self.df.index,
+                y=self.df['volume'],
                 name = 'Volume',
                 fill='tozeroy',
                 marker=dict(color='rgba(0, 0, 255, 0.5)'),
@@ -413,8 +440,8 @@ class TechCalculator(object):
         # MFI
         fig.append_trace(
             go.Scatter(
-                x=fundamental_dataframe.index,
-                y=fundamental_dataframe['mfi_14'],
+                x=self.df.index,
+                y=self.df['mfi_14'],
                 line=dict(color='#ff9900', width=2),
                 name='MFI(14)',
                 showlegend=True,
