@@ -1,4 +1,4 @@
-from DataCollector import DataCollector
+from DataManager import DataManager
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
@@ -22,7 +22,7 @@ class LinearRegressionModel(object):
         * Drop all the rows where we have NaN values
         '''
 
-        data_Controller = DataCollector()
+        data_Controller = DataManager()
 
         # Create DataFrame object from fundamental_data dict
         fundamental_dataframe = pd.DataFrame.from_dict(
