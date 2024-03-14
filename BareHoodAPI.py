@@ -1,9 +1,12 @@
 from flask import Flask, jsonify
+from flask_cors import CORS
 from DataManager import DataManager
 
 data_Controller = DataManager()
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+# CORS(app, origins='http://localhost:4200') #specific origins
 
 # Route to get a specific book by ID
 @app.route('/api/company-list', methods=['GET'])
